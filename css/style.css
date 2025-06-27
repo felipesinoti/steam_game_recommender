@@ -1,0 +1,36 @@
+.stApp {
+    background-color: #171a21;
+}
+
+.stSidebar {
+    background-color: #1B2838 !important;
+}
+
+.stButton>button {
+    background-color: #5BA32B;
+    color: white;
+    border: none;
+}
+
+.stButton>button:hover {
+    background-color: #6BBF3C;
+    color: white;
+}
+
+.stTextInput>div>div>input, .stSelectbox>div>div>select {
+    background-color: #2A475E;
+    color: white;
+}
+
+.stSlider>div>div>div>div {
+    background-color: #66C0F4;
+}
+
+.stTab {
+    background-color: #1B2838;
+}
+
+.stTab [aria-selected="true"] {
+    color: #F5AC27 !important;
+    border-bottom: 2px solid #F5AC27;
+}
