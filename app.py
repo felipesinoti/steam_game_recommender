@@ -463,6 +463,7 @@ st.markdown(f"""
 st.markdown(f"""
 <div style='background-color:{STEAM_DARK}; padding:20px; border-radius:5px; margin-bottom:20px;'>
     <p style='color:white; text-align:center;'>⚠️ Atenção: esse dashboard selecionou apenas jogos marcados como livres para todos os públicos na steam</p>
+    <p style='color:white; text-align:center; font-size: 14px;'>Observação: os dados coletados são estáticos, isto é, não se atualizam. Caso ocorra mudança em algum jogo, ela não reflitirá aqui.</p>
 </div>
 """, unsafe_allow_html=True)
 
