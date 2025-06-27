@@ -106,32 +106,33 @@ def calcular_top_jogos():
     
     recomendacoes = recomendacoes[mask]
     
-    # Cacular score de similaridade por cosseno
-    df_similar = recomendacoes[['FAIXA_PRECO', 'FAIXA_POPULARIDADE', 'FAIXA_RECOMENDACAO', 'FAIXA_COLECIONAVEIS', 'FAIXA_TEMPO_JOGO', 'VIDEO 360', 'DOCUMENTÁRIO', 'EPISÓDIOS', 'FILME', 'CASUAL', 'CURTO', 'AÇÃO', 'AVENTURA', 'INDEPENDENTE', 'ESTRATÉGIA', 'MULTIJOGADOR MASSIVO', 'UTILITÁRIOS', 'CORRIDA', 'SIMULAÇÃO', 'GRATUITO PARA JOGAR', 'RPG', 'DESIGN E ILUSTRAÇÃO', 'ANIMAÇÃO E MODELAGEM', 'DESENVOLVIMENTO DE JOGOS', 'EDUCAÇÃO', 'EDIÇÃO DE FOTOS', 'VIOLENTO', 'TREINAMENTO EM SOFTWARE', 'ESPORTES', 'PRODUÇÃO DE ÁUDIO', 'PUBLICAÇÃO WEB', 'PRODUÇÃO DE VÍDEO', 'CONTABILIDADE', 'ACESSO ANTECIPADO']]
-    colunas_escala_0a5 = [
-        'FAIXA_PRECO',
-        'FAIXA_POPULARIDADE',
-        'FAIXA_RECOMENDACAO',
-        'FAIXA_COLECIONAVEIS',
-        'FAIXA_TEMPO_JOGO'
-    ]
+    if(recomendacoes.shape[0] > 0):
+        # Cacular score de similaridade por cosseno
+        df_similar = recomendacoes[['FAIXA_PRECO', 'FAIXA_POPULARIDADE', 'FAIXA_RECOMENDACAO', 'FAIXA_COLECIONAVEIS', 'FAIXA_TEMPO_JOGO', 'VIDEO 360', 'DOCUMENTÁRIO', 'EPISÓDIOS', 'FILME', 'CASUAL', 'CURTO', 'AÇÃO', 'AVENTURA', 'INDEPENDENTE', 'ESTRATÉGIA', 'MULTIJOGADOR MASSIVO', 'UTILITÁRIOS', 'CORRIDA', 'SIMULAÇÃO', 'GRATUITO PARA JOGAR', 'RPG', 'DESIGN E ILUSTRAÇÃO', 'ANIMAÇÃO E MODELAGEM', 'DESENVOLVIMENTO DE JOGOS', 'EDUCAÇÃO', 'EDIÇÃO DE FOTOS', 'VIOLENTO', 'TREINAMENTO EM SOFTWARE', 'ESPORTES', 'PRODUÇÃO DE ÁUDIO', 'PUBLICAÇÃO WEB', 'PRODUÇÃO DE VÍDEO', 'CONTABILIDADE', 'ACESSO ANTECIPADO']]
+        colunas_escala_0a5 = [
+            'FAIXA_PRECO',
+            'FAIXA_POPULARIDADE',
+            'FAIXA_RECOMENDACAO',
+            'FAIXA_COLECIONAVEIS',
+            'FAIXA_TEMPO_JOGO'
+        ]
 
-    X_norm = df_similar.copy()
-    scaler = MinMaxScaler()
-    X_norm[colunas_escala_0a5] = scaler.fit_transform(X_norm[colunas_escala_0a5])
+        X_norm = df_similar.copy()
+        scaler = MinMaxScaler()
+        X_norm[colunas_escala_0a5] = scaler.fit_transform(X_norm[colunas_escala_0a5])
 
-    perfil = pd.DataFrame(novo_perfil, columns=X_norm.columns)
-    perfil[colunas_escala_0a5] = scaler.transform(perfil[colunas_escala_0a5])
-    
-    # 2. Atribuição segura
-    recomendacoes['SIMILARIDADE'] = cosine_similarity(X_norm, perfil).flatten()
-    recomendacoes = recomendacoes.sort_values('SIMILARIDADE', ascending=False).reset_index(drop = True)
-    
-    # Ajustando informações
-    recomendacoes['SISTEMAS_DISP'] = recomendacoes[['DISPONIVEL_WINDOWS', 'DISPONIVEL_MAC', 'DISPONIVEL_LINUX']].apply(lambda row: lista_sistemas(row['DISPONIVEL_WINDOWS'], row['DISPONIVEL_MAC'], row['DISPONIVEL_LINUX']), axis=1)
-    recomendacoes['INDICE_APROVACAO'] = 10 * recomendacoes['INDICE_APROVACAO'].round(3)
-    recomendacoes.loc[recomendacoes['INDICE_APROVACAO'] == -10, 'INDICE_APROVACAO'] = '-'
-    
+        perfil = pd.DataFrame(novo_perfil, columns=X_norm.columns)
+        perfil[colunas_escala_0a5] = scaler.transform(perfil[colunas_escala_0a5])
+        
+        # 2. Atribuição segura
+        recomendacoes['SIMILARIDADE'] = cosine_similarity(X_norm, perfil).flatten()
+        recomendacoes = recomendacoes.sort_values('SIMILARIDADE', ascending=False).reset_index(drop = True)
+        
+        # Ajustando informações
+        recomendacoes['SISTEMAS_DISP'] = recomendacoes[['DISPONIVEL_WINDOWS', 'DISPONIVEL_MAC', 'DISPONIVEL_LINUX']].apply(lambda row: lista_sistemas(row['DISPONIVEL_WINDOWS'], row['DISPONIVEL_MAC'], row['DISPONIVEL_LINUX']), axis=1)
+        recomendacoes['INDICE_APROVACAO'] = 10 * recomendacoes['INDICE_APROVACAO'].round(3)
+        recomendacoes.loc[recomendacoes['INDICE_APROVACAO'] == -10, 'INDICE_APROVACAO'] = '-'
+        
     return recomendacoes
 
 
@@ -469,53 +470,61 @@ st.markdown(f"""
 tab1, tab2, tab3 = st.tabs(["🎯 Principais Recomendações", "🌟 + Jogos Recomendados",  "🎲 Sobre o Dashboard"])
 
 with tab1:
-    df_top_3 = st.session_state.df_recomendados.head(3)
     # Div com cor de fundo diferente
     st.markdown(f"""
     <div style='background-color:{STEAM_MEDIUM}; padding:15px; border-radius:5px; margin-bottom:20px;'>
         <h2 style='color:{STEAM_LIGHT};'>Recomendações Personalizadas</h2>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Painel de jogos recomendados (você pode adicionar mais)
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        nota = df_top_3.iloc[0]['INDICE_APROVACAO']
-        nota = nota if nota == '-' else '{:.2f}'.format(float(nota))
+    if(st.session_state.df_recomendados.shape[0] > 0):
+        df_top_3 = st.session_state.df_recomendados.head(3)
+        
+        # Painel de jogos recomendados (você pode adicionar mais)
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            nota = df_top_3.iloc[0]['INDICE_APROVACAO']
+            nota = nota if nota == '-' else '{:.2f}'.format(float(nota))
+                
+            st.markdown(f"""
+            <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center;'>
+                <img src="{df_top_3.iloc[0]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
+                <h3 style='color:#66C0F4;'>{df_top_3.iloc[0]['NOME']}</h3>
+                <p style='color:white;'>{df_top_3.iloc[0]['GENEROS']}</p>
+                <p style='color:#F5AC27;'>⭐ {nota}/10</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            nota = df_top_3.iloc[0]['INDICE_APROVACAO']
+            nota = nota if nota == '-' else '{:.2f}'.format(float(nota))
             
-        st.markdown(f"""
-        <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center;'>
-            <img src="{df_top_3.iloc[0]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
-            <h3 style='color:#66C0F4;'>{df_top_3.iloc[0]['NOME']}</h3>
-            <p style='color:white;'>{df_top_3.iloc[0]['GENEROS']}</p>
-            <p style='color:#F5AC27;'>⭐ {nota}/10</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        nota = df_top_3.iloc[0]['INDICE_APROVACAO']
-        nota = nota if nota == '-' else '{:.2f}'.format(float(nota))
+            st.markdown(f"""
+            <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center;'>
+                <img src="{df_top_3.iloc[1]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
+                <h3 style='color:#66C0F4;'>{df_top_3.iloc[1]['NOME']}</h3>
+                <p style='color:white;'>{df_top_3.iloc[1]['GENEROS']}</p>
+                <p style='color:#F5AC27;'>⭐ {nota}/10</p>
+            </div>
+            """, unsafe_allow_html=True)
         
+        with col3:
+            nota = df_top_3.iloc[0]['INDICE_APROVACAO']
+            nota = nota if nota == '-' else '{:.2f}'.format(float(nota))
+            
+            st.markdown(f"""
+            <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center;'>
+                <img src="{df_top_3.iloc[2]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
+                <h3 style='color:#66C0F4;'>{df_top_3.iloc[2]['NOME']}</h3>
+                <p style='color:white;'>{df_top_3.iloc[2]['GENEROS']}</p>
+                <p style='color:#F5AC27;'>⭐ {nota}/10</p>
+            </div>
+            """, unsafe_allow_html=True)
+    else:    
+        # Div com cor de fundo diferente
         st.markdown(f"""
-        <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center;'>
-            <img src="{df_top_3.iloc[1]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
-            <h3 style='color:#66C0F4;'>{df_top_3.iloc[1]['NOME']}</h3>
-            <p style='color:white;'>{df_top_3.iloc[1]['GENEROS']}</p>
-            <p style='color:#F5AC27;'>⭐ {nota}/10</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        nota = df_top_3.iloc[0]['INDICE_APROVACAO']
-        nota = nota if nota == '-' else '{:.2f}'.format(float(nota))
-        
-        st.markdown(f"""
-        <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center;'>
-            <img src="{df_top_3.iloc[2]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
-            <h3 style='color:#66C0F4;'>{df_top_3.iloc[2]['NOME']}</h3>
-            <p style='color:white;'>{df_top_3.iloc[2]['GENEROS']}</p>
-            <p style='color:#F5AC27;'>⭐ {nota}/10</p>
+        <div style='background-color:#2A475E; padding:15px; border-radius:5px; margin-bottom:20px;'>
+            <p style='color:white;'>Não foi possível encontrar jogos que atendam aos filtros escolhidos. Tente escolher outros filtros.</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -526,29 +535,38 @@ with tab2:
     </div>
     """, unsafe_allow_html=True)
     
-    # Tabela de top jogos
-    df_top = st.session_state.df_recomendados.reset_index()
-    df_top = df_top[['index', 'NOME', 'INDICE_APROVACAO', 'GENERO_PRINCIPAL', 'ANO_LANCAMENTO', 'PRECO', 'SISTEMAS_DISP', 'DESENVOLVEDORES', 'TAGS']]
-    df_top = df_top.rename(columns={'index': 'Posição',
-                           'NOME': 'Jogo',
-                           'INDICE_APROVACAO': 'Avaliação',
-                           'GENERO_PRINCIPAL': 'Gênero principal',
-                           'TAGS': 'Tags',
-                           'ANO_LANCAMENTO': 'Ano de lançamento',
-                           'PRECO': 'Preço',
-                           'SISTEMAS_DISP': 'Sistemas',
-                           'DESENVOLVEDORES': 'Desenvolvedores'
-                           })
     
-    st.dataframe(
-        df_top.style.format({
-            'Avaliação': lambda x: x if x == '-' else '{:.2f}'.format(float(x)),
-            'Preço': '${:.2f}'
-        }).applymap(lambda x: f"color: {STEAM_LIGHT}", subset=["Jogo"])
-        .applymap(lambda x: f"color: {STEAM_ORANGE}", subset=["Avaliação"]),
-        hide_index=True,
-        use_container_width=True
-    )
+    if(st.session_state.df_recomendados.shape[0] > 0):
+        # Tabela de top jogos
+        df_top = st.session_state.df_recomendados.reset_index()
+        df_top = df_top[['index', 'NOME', 'INDICE_APROVACAO', 'GENERO_PRINCIPAL', 'ANO_LANCAMENTO', 'PRECO', 'SISTEMAS_DISP', 'DESENVOLVEDORES', 'TAGS']]
+        df_top = df_top.rename(columns={'index': 'Posição',
+                            'NOME': 'Jogo',
+                            'INDICE_APROVACAO': 'Avaliação',
+                            'GENERO_PRINCIPAL': 'Gênero principal',
+                            'TAGS': 'Tags',
+                            'ANO_LANCAMENTO': 'Ano de lançamento',
+                            'PRECO': 'Preço',
+                            'SISTEMAS_DISP': 'Sistemas',
+                            'DESENVOLVEDORES': 'Desenvolvedores'
+                            })
+        
+        st.dataframe(
+            df_top.style.format({
+                'Avaliação': lambda x: x if x == '-' else '{:.2f}'.format(float(x)),
+                'Preço': '${:.2f}'
+            }).applymap(lambda x: f"color: {STEAM_LIGHT}", subset=["Jogo"])
+            .applymap(lambda x: f"color: {STEAM_ORANGE}", subset=["Avaliação"]),
+            hide_index=True,
+            use_container_width=True
+        )
+    else:
+        # Div com cor de fundo diferente
+        st.markdown(f"""
+        <div style='background-color:#2A475E; padding:15px; border-radius:5px; margin-bottom:20px;'>
+            <p style='color:white;'>Não foi possível encontrar jogos que atendam aos filtros escolhidos. Tente escolher outros filtros.</p>
+        </div>
+        """, unsafe_allow_html=True)
     
 with tab3:
 
