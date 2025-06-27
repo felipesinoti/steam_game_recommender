@@ -3,3 +3,4 @@ streamlit==1.46.0
 streamlit-extras==0.7.1
 pandas==2.3.0
 scikit-learn==1.7.0
+kmodes==0.12.2
