@@ -10,20 +10,21 @@ import base64
 import random
 import joblib
 
-# Configuração inicial
+# Configurações iniciais
 st.set_page_config(
     page_title="Steam Game Recommender",
     page_icon="🎮",
     layout="wide"
 )
 
+# Leitura das bases
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.float_format', '{:.3f}'.format)
 base_principal = pd.read_parquet('datasets/base_final_tratada.parquet')
 modelo = joblib.load('datasets/modelo_cluster.pkl')
+exibir_fluxograma = False
 
 # Criando DataFrames
-# Dados para a tabela
 data = {
     "Coluna Original": [
         "AppID", "Name", "Release date", "Positive/Negative", "-", 
@@ -49,7 +50,7 @@ data = {
 }
 df = pd.DataFrame(data)
 
-# Inicializa o DataFrame no session_state se não existir
+# Funçoes
 def lista_sistemas(win, mac, linux):
     sistemas = ""
     if(win):
@@ -66,7 +67,6 @@ def lista_sistemas(win, mac, linux):
 
 def calcular_top_jogos():
     filtros = st.session_state.filtros_aplicados
-    # Gera o dataframe aplicando o modelo de ML para clusterizar o perfil do usuário
     TODOS_GENEROS = [
         'VIDEO 360', 'DOCUMENTÁRIO', 'EPISÓDIOS', 'FILME', 'CASUAL', 'CURTO', 
         'AÇÃO', 'AVENTURA', 'INDEPENDENTE', 'ESTRATÉGIA', 'MULTIJOGADOR MASSIVO',
@@ -93,7 +93,6 @@ def calcular_top_jogos():
     print(cluster_usuario)
     recomendacoes = base_principal[base_principal['CLUSTER_KMODES'] == cluster_usuario]
     
-    # Filtra os jogos com base nos valores escolhidos pelo usuario
     mask = (
         (recomendacoes['PRECO'] >= filtros['PRECO_MIN']) & \
         (recomendacoes['PRECO'] <= filtros['PRECO_MAX']) & \
@@ -107,7 +106,6 @@ def calcular_top_jogos():
     recomendacoes = recomendacoes[mask]
     
     if(recomendacoes.shape[0] > 0):
-        # Cacular score de similaridade por cosseno
         df_similar = recomendacoes[['FAIXA_PRECO', 'FAIXA_POPULARIDADE', 'FAIXA_RECOMENDACAO', 'FAIXA_COLECIONAVEIS', 'FAIXA_TEMPO_JOGO', 'VIDEO 360', 'DOCUMENTÁRIO', 'EPISÓDIOS', 'FILME', 'CASUAL', 'CURTO', 'AÇÃO', 'AVENTURA', 'INDEPENDENTE', 'ESTRATÉGIA', 'MULTIJOGADOR MASSIVO', 'UTILITÁRIOS', 'CORRIDA', 'SIMULAÇÃO', 'GRATUITO PARA JOGAR', 'RPG', 'DESIGN E ILUSTRAÇÃO', 'ANIMAÇÃO E MODELAGEM', 'DESENVOLVIMENTO DE JOGOS', 'EDUCAÇÃO', 'EDIÇÃO DE FOTOS', 'VIOLENTO', 'TREINAMENTO EM SOFTWARE', 'ESPORTES', 'PRODUÇÃO DE ÁUDIO', 'PUBLICAÇÃO WEB', 'PRODUÇÃO DE VÍDEO', 'CONTABILIDADE', 'ACESSO ANTECIPADO']]
         colunas_escala_0a5 = [
             'FAIXA_PRECO',
@@ -124,17 +122,14 @@ def calcular_top_jogos():
         perfil = pd.DataFrame(novo_perfil, columns=X_norm.columns)
         perfil[colunas_escala_0a5] = scaler.transform(perfil[colunas_escala_0a5])
         
-        # 2. Atribuição segura
         recomendacoes['SIMILARIDADE'] = cosine_similarity(X_norm, perfil).flatten()
         recomendacoes = recomendacoes.sort_values('SIMILARIDADE', ascending=False).reset_index(drop = True)
         
-        # Ajustando informações
         recomendacoes['SISTEMAS_DISP'] = recomendacoes[['DISPONIVEL_WINDOWS', 'DISPONIVEL_MAC', 'DISPONIVEL_LINUX']].apply(lambda row: lista_sistemas(row['DISPONIVEL_WINDOWS'], row['DISPONIVEL_MAC'], row['DISPONIVEL_LINUX']), axis=1)
         recomendacoes['INDICE_APROVACAO'] = 10 * recomendacoes['INDICE_APROVACAO'].round(3)
         recomendacoes.loc[recomendacoes['INDICE_APROVACAO'] == -10, 'INDICE_APROVACAO'] = '-'
         
     return recomendacoes
-
 
 if 'filtros_aplicados' not in st.session_state:
     st.session_state.filtros_aplicados = {"GENERO":["AÇÃO","RPG"],"FAIXA_POPULARIDADE":3,"FAIXA_RECOMENDACAO":3,"FAIXA_COLECIONAVEIS":3,"FAIXA_TEMPO_JOGO":3,"FAIXA_PRECO":3,"PRECO_MIN":0,"PRECO_MAX":60,"ANO_MIN":1997,"ANO_MAX":2025,"WINDOWS":True,"MAC":False,"LINUX":False}
@@ -297,6 +292,14 @@ STEAM_LIGHT = "#66C0F4"
 STEAM_ORANGE = "#F5AC27"
 STEAM_GREEN = "#5BA32B"
 
+st.markdown("""
+    <style>
+    [data-testid="stIconMaterial"] {
+        color: red !important;  /* ou qualquer cor: #fff, rgba(0,0,0,0.7), etc */
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 # Configuração da barra lateral
 with st.sidebar:
     # Cabeçalho estilizado
@@ -307,7 +310,7 @@ with st.sidebar:
                 margin-bottom: 25px;
                 box-shadow: 0 4px 8px rgba(0,0,0,0.2)'>
         <h1 style='color:white; margin:0; display:flex; align-items:center;'>
-            🎮 <span style='margin-left:10px;'>Steam Recommender</span>
+            🎮 <span style='margin-left:10px; font-size: 15px'>Steam Recommender</span>
         </h1>
         <p style='color:{STEAM_LIGHT}; margin:5px 0 0 0; font-size:14px;'>
             Personalize suas recomendações de jogos
@@ -376,7 +379,7 @@ with st.sidebar:
         
         price_range = st.slider(
             "💰 Faixa de preço (USD)",
-            0, 1000, (0, 60),
+            0, 100, (0, 15),
             help="Intervalo de preço dos jogos recomendados"
         )
         
@@ -450,12 +453,7 @@ st.markdown(f"""
 # HTML para cabeçalho no estilo Steam
 st.markdown(f"""
 <div style='background-color:{STEAM_DARK}; padding:20px; border-radius:5px; margin-bottom:20px;'>
-    <p style='color:white; text-align:center;'> Este é um dash interativo cujo o objetivo é te dar recomendações de jogos na plataforma da <a href='https://store.steampowered.com/?l=portuguese'>Steam</a>, a maior plataforma de jogos para computador.</p>
-    <ul style='color:white; padding-left: 5rem;'>
-        <li>Use a barra lateral para filtrar os jogos de acordo com suas preferências e receba na aba '🎯 Principais recomendações' os top 3  jogos mais recomendados para você!</li>
-        <li>Para ver mais recomendações com base em suas preferências, use a aba '🌟 + Jogos Recomendados'.</li>
-        <li>Para entender mais sobre os dados do dashboard, as análises por detrás dos panos e o sistema de recomedações, vá para a aba "🎲 Sobre o Dashboard".</li>
-    </ul>
+    <p style='color:white; text-align:center;'>Este dashboard interativo recomenda jogos da <a href='https://store.steampowered.com/?l=portuguese'>Steam</a> com base nas suas preferências. Use a <b style='background-color:black; padding:0.1rem'>barra lateral</b> (botão ">>" acima) para aplicar filtros e veja os top 3 jogos sugeridos na aba 🎯 Principais recomendações. Para mais sugestões ou entender como tudo funciona, acesse as abas 🌟 + Jogos Recomendados e 🎲 Sobre o Dashboard.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -474,53 +472,79 @@ with tab1:
     # Div com cor de fundo diferente
     st.markdown(f"""
     <div style='background-color:{STEAM_MEDIUM}; padding:15px; border-radius:5px; margin-bottom:20px;'>
-        <h2 style='color:{STEAM_LIGHT};'>Recomendações Personalizadas</h2>
+        <h3 style='color:{STEAM_LIGHT}; text-align:center;'>Recomendações Personalizadas</h3>
     </div>
     """, unsafe_allow_html=True)
     if(st.session_state.df_recomendados.shape[0] > 0):
-        df_top_3 = st.session_state.df_recomendados.head(3)
+        df_top_10 = st.session_state.df_recomendados.head(10)
         
         # Painel de jogos recomendados (você pode adicionar mais)
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            nota = df_top_3.iloc[0]['INDICE_APROVACAO']
+            nota = df_top_10.iloc[0]['INDICE_APROVACAO']
             nota = nota if nota == '-' else '{:.2f}'.format(float(nota))
                 
             st.markdown(f"""
-            <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center;'>
-                <img src="{df_top_3.iloc[0]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
-                <h3 style='color:#66C0F4;'>{df_top_3.iloc[0]['NOME']}</h3>
-                <p style='color:white;'>{df_top_3.iloc[0]['GENEROS']}</p>
+            <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center; margin-bottom: 5px;'>
+                <p style='color:white;'>#1 lugar</p>
+                <img src="{df_top_10.iloc[0]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
+                <h5 style='color:#66C0F4;'>{df_top_10.iloc[0]['NOME']}</h5>
+                <p style='color:white;'>{df_top_10.iloc[0]['GENEROS']}</p>
                 <p style='color:#F5AC27;'>⭐ {nota}/10</p>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
-            nota = df_top_3.iloc[0]['INDICE_APROVACAO']
+            nota = df_top_10.iloc[0]['INDICE_APROVACAO']
             nota = nota if nota == '-' else '{:.2f}'.format(float(nota))
             
             st.markdown(f"""
-            <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center;'>
-                <img src="{df_top_3.iloc[1]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
-                <h3 style='color:#66C0F4;'>{df_top_3.iloc[1]['NOME']}</h3>
-                <p style='color:white;'>{df_top_3.iloc[1]['GENEROS']}</p>
+            <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center; margin-bottom: 5px;'>
+                <p style='color:white;'>#2 lugar</p>
+                <img src="{df_top_10.iloc[1]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
+                <h5 style='color:#66C0F4;'>{df_top_10.iloc[1]['NOME']}</h5>
+                <p style='color:white;'>{df_top_10.iloc[1]['GENEROS']}</p>
                 <p style='color:#F5AC27;'>⭐ {nota}/10</p>
             </div>
             """, unsafe_allow_html=True)
         
         with col3:
-            nota = df_top_3.iloc[0]['INDICE_APROVACAO']
+            nota = df_top_10.iloc[0]['INDICE_APROVACAO']
             nota = nota if nota == '-' else '{:.2f}'.format(float(nota))
             
             st.markdown(f"""
-            <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center;'>
-                <img src="{df_top_3.iloc[2]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
-                <h3 style='color:#66C0F4;'>{df_top_3.iloc[2]['NOME']}</h3>
-                <p style='color:white;'>{df_top_3.iloc[2]['GENEROS']}</p>
+            <div style='background-color:#2A475E; padding:10px; border-radius:5px; text-align:center; margin-bottom: 5px;'>
+                <p style='color:white;'>#3 lugar</p>
+                <img src="{df_top_10.iloc[2]['IMAGEM_CAPA']}" width='100%' style='border-radius:5px;'>
+                <h5 style='color:#66C0F4;'>{df_top_10.iloc[2]['NOME']}</h5>
+                <p style='color:white;'>{df_top_10.iloc[2]['GENEROS']}</p>
                 <p style='color:#F5AC27;'>⭐ {nota}/10</p>
             </div>
             """, unsafe_allow_html=True)
+            
+        if(df_top_10.shape[0] > 3):
+            st.markdown(f"""
+            <div style='background-color:{STEAM_MEDIUM}; padding:5px; border-radius:5px; margin-top:20px;'>
+                <p style='color:{STEAM_LIGHT}; text-align:center;'>Veja mais recomendações abaixo:</p>
+            </div>
+            """, unsafe_allow_html=True)
+            carousel_items = ""
+            for i in range(df_top_10.shape[0] - 3):
+                carousel_items += f"""<div class="carousel__face" style="background-image: url('{df_top_10.iloc[i+3]['IMAGEM_CAPA']}');"><span>#{i+4} lugar: {df_top_10.iloc[i+3]['NOME']}</span></div>"""
+            st.markdown(f"""
+            <div class="carousel-wrapper">
+                <div class="container">
+                    <div class="carousel">
+                        {carousel_items}
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        
+        # st.components.v1.html(image_viewer(img_base64), height=600)
+
     else:    
         # Div com cor de fundo diferente
         st.markdown(f"""
@@ -532,7 +556,7 @@ with tab1:
 with tab2:
     st.markdown(f"""
     <div style='background-color:{STEAM_MEDIUM}; padding:15px; border-radius:5px; margin-bottom:20px;'>
-        <h2 style='color:{STEAM_LIGHT};'>Top Jogos Recomendados da Steam</h2>
+        <h3 style='color:{STEAM_LIGHT}; text-align:center'>Top Jogos Recomendados da Steam</h3>
     </div>
     """, unsafe_allow_html=True)
     
@@ -573,38 +597,38 @@ with tab3:
 
     st.markdown(f"""
     <div style='background-color:{STEAM_MEDIUM}; padding:15px; border-radius:5px; margin-bottom:20px;'>
-        <h2 style='color:{STEAM_LIGHT};'>Sobre a base de dados</h2>
-        <p>Atualmente, sistemas de recomendação estão presentes em praticamente todas as plataformas digitais — da Netflix ao Spotify, passando por Amazon e YouTube — ajudando usuários a descobrirem conteúdos relevantes de forma personalizada. Inspirado por esse cenário, este dashboard propõe o desenvolvimento de um sistema de recomendação de jogos focado na Steam, uma das maiores plataformas de distribuição de jogos para computador. O objetivo é oferecer sugestões inteligentes de títulos com classificação livre, facilitando a descoberta de novos jogos por parte do público geral, com base em características dos próprios games e nas preferências indicadas pelos usuários.</p>   
+        <h3 style='color:{STEAM_LIGHT};'>Sobre a base de dados</h3>
+        <p>Sistemas de recomendação estão presentes em praticamente todas as plataformas digitais — da Netflix ao Spotify, passando por Amazon e YouTube — ajudando usuários a descobrirem conteúdos relevantes de forma personalizada. Inspirado por esse cenário, este dashboard propõe o desenvolvimento de um sistema de recomendação de jogos focado na Steam, uma das maiores plataformas de distribuição de jogos para computador. O objetivo é oferecer sugestões inteligentes de títulos com classificação livre, facilitando a descoberta de novos jogos por parte do público geral, com base em características dos próprios games e nas preferências indicadas pelos usuários.</p>   
         <p>Para a base de dados, usei o data set <a href="https://www.kaggle.com/datasets/fronkongames/steam-games-dataset/data">Steam Games Dataset</a> disponível no Kaggle. Ele reúne informações diversas como "Nome", "Descição", "Preço", "Data de lançamento", "Avaliações", "Recomendações" e muito mais de mais de 110 mil jogos publicados na Steam, coletadas pela API da própria plataforma.</p>
         <p>Confira abaixo como os dados foram organizados!</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Carregar e converter imagem
-    img_base64 = image_to_base64("img/Fluxograma_limpeza.png")
-    
-    # Container Steam
-    with st.container():
-        st.markdown(f"""
-        <div style='
-            background-color: {STEAM_DARK};
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            border-left: 4px solid {STEAM_ORANGE};
-        '>
-            <h3 style='color:{STEAM_LIGHT};'>Fluxograma de Tratamento de Dados</h3>
-        </div>
-        """, unsafe_allow_html=True)
+    if(exibir_fluxograma):
+        img_base64 = image_to_base64("img/Fluxograma_limpeza.png")
         
-        # Visualizador de Imagem
-        st.components.v1.html(image_viewer(img_base64), height=600)
-        
-        st.markdown(f"""
-        <div style='color:{STEAM_LIGHT}; font-size:0.9em; text-align: center; margin-top: -150px'>
-            🔍 Clique nos botões para zoom | 🖱️ Arraste para navegar
-        </div>
-        """, unsafe_allow_html=True)
+        # Container Steam
+        with st.container():
+            st.markdown(f"""
+            <div style='
+                background-color: {STEAM_DARK};
+                border-radius: 8px;
+                padding: 15px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                border-left: 4px solid {STEAM_ORANGE};
+            '>
+                <h3 style='color:{STEAM_LIGHT};'>Fluxograma de Tratamento de Dados</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Visualizador de Imagem
+            st.components.v1.html(image_viewer(img_base64), height=600)
+            
+            st.markdown(f"""
+            <div style='color:{STEAM_LIGHT}; font-size:0.9em; text-align: center; margin-top: -150px'>
+                🔍 Clique nos botões para zoom | 🖱️ Arraste para navegar
+            </div>
+            """, unsafe_allow_html=True)
 
     with st.container():
         st.markdown(f"""
@@ -617,8 +641,9 @@ with tab3:
             border-left: 4px solid {STEAM_ORANGE};
         '>
             <h3 style='color:{STEAM_LIGHT};'>Estrutura da Base de Dados</h3>
-            <p style='color:white;'>Sendo exaustivo e explicando mais detalhadamento o passo a passo do fluxograma, como haviam várias variáveis iniciais, o primeiro passo foi filtrar as informações que não faziam sentido para o propósito do dashboard e tratar os dados. Portanto, seguem os tratamentos utilizados:</p>
-            <p style='color:white;'>Filtrei os jogos impróprios e os que não tinham a informação de gênero e transformei as colunas originais em colunas mais analítico. O objetivo disso é preparar os dados para o Machine Learning aplicado.</p>
+            <p style='color:white;'>Como haviam várias variáveis iniciais, o primeiro passo foi filtrar as informações que não faziam sentido para o propósito do dashboard e tratar os dados.</p>
+            <p style='color:white;'>Sendo assim, filtrei os jogos impróprios e os que não tinham a informação de gênero e transformei as colunas originais em colunas mais analíticas.<p>
+            <p style='color:white;'>Desta forma, os dados foram preparados de maneira mais adequada para a aplicação do Machine Learning. Abaixo é possível ver como ficou a estrutra da tabela pós-tratamento:</p>
             <p style='color:white; font-size: 14px'>~ As colunas originais que não aparecem foram removidas</p>
         </div>
         """, unsafe_allow_html=True)
@@ -653,7 +678,7 @@ with tab3:
                     <p style='color:white;'>VIDEO 360, DOCUMENTÁRIO, EPISÓDIOS, FILME, CASUAL, CURTO, AÇÃO, AVENTURA, INDEPENDENTE, ESTRATÉGIA, MULTIJOGADOR MASSIVO, UTILITÁRIOS, CORRIDA, SIMULAÇÃO, GRATUITO PARA JOGAR, RPG, DESIGN E ILUSTRAÇÃO, ANIMAÇÃO E MODELAGEM, DESENVOLVIMENTO DE JOGOS, EDUCAÇÃO, EDIÇÃO DE FOTOS, VIOLENTO, TREINAMENTO EM SOFTWARE, ESPORTES, PRODUÇÃO DE ÁUDIO, PUBLICAÇÃO WEB, PRODUÇÃO DE VÍDEO, CONTABILIDADE, ACESSO ANTECIPADO</p>
                 </div>
             </div>
-            <p style='color:white;'>Por fim, como muitos valores eram quantitativos e variávam em escala, foi necessário criar métricas normalizadas que dividissem bem os dados. Daí surgiram as colunas de faixas, que quebram as variáveis descritas abaixo em quintis</p>
+            <p style='color:white;'>Por fim, como muitos valores eram quantitativos e variávam em escala, foi necessário criar métricas normalizadas que dividissem bem os dados. Daí surgiram as colunas de faixas, que quebram as variáveis descritas abaixo em quintis.</p>
             <div style='display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px;'>
                 <div style='background-color: {STEAM_DARK}; padding: 10px; border-radius: 4px;'>
                     <p style='color:{STEAM_ORANGE}; margin: 0;'>FAIXA_PRECO</p>
@@ -782,7 +807,7 @@ with tab3:
     '>
         <p style='color:white;'>Nestes gráficos é possível ver que a quantidade de clusters utilizada cresce muito para que o ganho seja bom. Isso também implica na demora maior do algoritmo para rodar novos pontos. Sendo assim, fiz uma regressão não linear simples para entender melhor a tendência dos meus dados e definir a quantidade de 360 clusters para o sistema de recomendações.</p>
         <p style='color:white;'>⚠️ Ponto importante! Pelo conjunto de dados diversificado, o ideal é utilizar o K-Prototypes, que consegue clusterizar variáveis numéricas (as faixas) e categorias (as de One Hot Encoded) ao mesmo tempo. No entanto, a máquina utilizada era limitada a 16 Gb de RAM, o que tornou bem custoso e demorado o processamento. Daí veio a ideia de usar o K-Modes, que funciona bem para variáveis categorias, considerando que os valores de "Faixa" também são categóricos. Não é matematicamente ideal usar K-Modes com variáveis ordinais discretizadas pois o algoritmo ignora a ordem e magnitude relativa das diferentes faixas, mas optei pela simplicidade no modelo e segui desta forma.</p>
-        <p style='color:white;'>🧠 Nesse sentido, para equilibrar esse ponto de alerta, melhorei o algoritmo de recomendação usando a <a href="https://pt.wikipedia.org/wiki/Similaridade_por_cosseno">similaridade por cosseno</a>. Então, assim que o jogador escolher os filtros desejados, o algoritmo de ML prevê o cluster que mais se adequa as informações, retornando uma lista de jogos recomendados. Daí, normalizo as variáveis de faixa entre 0 e 1 e aplico a similaridade por cossenos para escolher o top 3 de jogos mais próximos ao que o usuário deseja. Essa similaridade retorna um valor entre -1 a 1 (no nosso caso um valor entre 0 e 1 pois todos os valores são positivos), indicando quão bem os vetores comparados são próximos entre si. O retorno mais próximo de 1 indica similaridade e mais próximo de -1, indica dissimilaridade (diferença).</p>
+        <p style='color:white;'>🧠 Nesse sentido, para equilibrar esse ponto de alerta, melhorei o algoritmo de recomendação usando a <a href="https://pt.wikipedia.org/wiki/Similaridade_por_cosseno">similaridade por cosseno</a>. Então, assim que o jogador escolher os filtros desejados, o algoritmo de ML prevê o cluster que mais se adequa as informações, retornando uma lista de jogos recomendados. Daí, normalizo as variáveis de faixa entre 0 e 1 e aplico a similaridade por cossenos para escolher os top 'n' jogos mais próximos ao que o usuário deseja. Essa similaridade retorna um valor entre -1 a 1 (no nosso caso um valor entre 0 e 1 pois todos os valores são positivos), indicando quão bem os vetores comparados são próximos entre si. O retorno mais próximo de 1 indica similaridade e mais próximo de -1, indica dissimilaridade (diferença).</p>
         <p style='color:white;'>🎯 Por ser um algoritmo de aprendizado não supervisionado e ter uma imensa variedade de clusters, é difícil dizer com precisão a assertividade do modelo. Por meio da média, é possível traçado um perfil médio para cada cluster, mas como são muitas variáveis categóricas de gênero, alguns valores acabam não fazendo tanto sentido, até mesmo para o PCA, que só funciona bem se todas as colunas forem numéricas. Como este é um sistema de recomendação, uma boa maneira de testar é na prática, colocando os filtros que deseja e observando se os jogos condizem com os filtros esperados.</p>
         <p style='color:white;'><b>Concluindo:</b> apesar do modelo apresentar limitações e ausência de interações reais do usuário, ele se mostrou funcional e promissor, servindo de base para recomendações personalizadas.</p>
         <p style='color:white;'>🎮 Dito tudo isso, escolha os filtros que desejar e veja o algoritmo em ação recomendando os melhores jogos para você!</p>
